@@ -25,13 +25,15 @@ public class StartActivity extends AppCompatActivity {
         });
 
         Button touploadbtn = findViewById(R.id.touploadpagebtn);
-
         touploadbtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view)
-            {
-                Intent toupload = new Intent(StartActivity.this,LoginActivity.class);
-                startActivity(toupload);;
+            public void onClick(View view) {
+                String token = SessionManager.getToken(StartActivity.this);
+                if (token != null && !token.isEmpty()) {
+                    startActivity(new Intent(StartActivity.this, UploadActivity.class));
+                } else {
+                    startActivity(new Intent(StartActivity.this, LoginActivity.class));
+                }
             }
         });
     }

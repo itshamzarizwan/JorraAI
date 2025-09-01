@@ -1,20 +1,16 @@
 package com.example.jorraai;
 
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import android.Manifest;
-import android.content.pm.PackageManager;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,6 +18,8 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -42,14 +40,17 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// If you added Google sign-in earlier, this signs out Firebase too (optional but recommended)
+import com.google.firebase.auth.FirebaseAuth;
+
 public class UploadActivity extends AppCompatActivity {
 
     private static final int CAMERA_PERMISSION_CODE = 200;
     RecyclerView recyclerView;
     ImageAdapter adapter;
     List<Item> hairstyleList;
-    TextView supportedFormatText;
-    Button selectFileBtn, submitBtn;
+    TextView supportedFormatText, tryOnsText;
+    Button selectFileBtn, submitBtn, logoutBtn;   // ← added logoutBtn
     ImageView imagePreview, uploadIcon;
     boolean isImageSelected = false;
 
@@ -59,26 +60,52 @@ public class UploadActivity extends AppCompatActivity {
     private Bitmap selfieBitmap;
     private int selectedHairstyleResId = -1;
 
+    private static final String BASE_URL = "https://try-on.docwyn.com";
+    private static final String APPLY_URL = BASE_URL + "/apply-hairstyle/"; // trailing slash matters
+    private static final String ME_URL = BASE_URL + "/me";
 
-    private final String BACKEND_URL = " https://4fa3e4863c5f.ngrok-free.app/apply-hairstyle/";
+    private OkHttpClient http;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_upload);
 
+        // Build a client that always injects Authorization if present
+        http = new OkHttpClient.Builder()
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .addNetworkInterceptor(chain -> {
+                    Request original = chain.request();
+                    String t = SessionManager.getToken(UploadActivity.this);
+                    if (t != null && !t.isEmpty()) {
+                        Request withAuth = original.newBuilder()
+                                .header("Authorization", "Bearer " + t)
+                                .build();
+                        return chain.proceed(withAuth);
+                    }
+                    return chain.proceed(original);
+                })
+                .build();
 
         recyclerView = findViewById(R.id.recyclerViewHairstyles);
         selectFileBtn = findViewById(R.id.selectFileBtn);
         submitBtn = findViewById(R.id.submitformbtn);
+        logoutBtn = findViewById(R.id.logoutBtn);           // ← findViewById
         imagePreview = findViewById(R.id.imagePreview);
         uploadIcon = findViewById(R.id.uploadIcon);
         supportedFormatText = findViewById(R.id.supportedFormatText);
+        tryOnsText = findViewById(R.id.tryOnsText);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         setupHairstyles();
         setupLaunchers();
+
+        // Use cached try-ons on start
+        int tryOns = SessionManager.getTryOns(this);
+        updateTryOnsLabel(tryOns);
 
         selectFileBtn.setOnClickListener(v -> {
             if (!isImageSelected) showImagePickerDialog();
@@ -87,6 +114,30 @@ public class UploadActivity extends AppCompatActivity {
 
         submitBtn.setOnClickListener(v -> handleSubmit());
 
+        // ← logout handler: clear session + (optional) Firebase sign out + go to LoginActivity
+        if (logoutBtn != null) {
+            logoutBtn.setOnClickListener(v -> {
+                try {
+                    FirebaseAuth.getInstance().signOut(); // safe even if not signed in
+                } catch (Throwable ignored) {}
+                SessionManager.clear(UploadActivity.this);
+
+                Toast.makeText(UploadActivity.this, "Logged out", Toast.LENGTH_SHORT).show();
+
+                Intent i = new Intent(UploadActivity.this, LoginActivity.class);
+                // Clear back stack so user can’t navigate back into Upload after logout
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(i);
+                finish();
+            });
+        }
+    }
+
+    private void updateTryOnsLabel(int tryOns) {
+        if (tryOnsText != null) {
+            tryOnsText.setText("Try-ons left: " + tryOns);
+            tryOnsText.setVisibility(TextView.VISIBLE);
+        }
     }
 
     private void setupHairstyles() {
@@ -161,18 +212,19 @@ public class UploadActivity extends AppCompatActivity {
             Toast.makeText(this, "Please select a hairstyle", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        int tryOns = SessionManager.getTryOns(this);
+        if (tryOns <= 0) {
+            Toast.makeText(this, "No try-ons left.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         sendToBackend(selfieBitmap, selectedHairstyleResId);
     }
 
     private void sendToBackend(Bitmap selfieBitmap, int hairstyleResId) {
         submitBtn.setEnabled(false);
         submitBtn.setText("Uploading...");
-
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .build();
 
         Bitmap resizedSelfie = resizeBitmap(selfieBitmap, 512);
         Bitmap hairstyleBitmap = BitmapFactory.decodeResource(getResources(), hairstyleResId);
@@ -187,12 +239,21 @@ public class UploadActivity extends AppCompatActivity {
                 .addFormDataPart("hairstyle", "hairstyle.jpg", RequestBody.create(hairstyleBytes, MediaType.parse("image/jpeg")))
                 .build();
 
+        String token = SessionManager.getToken(this);
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         Request request = new Request.Builder()
-                .url(BACKEND_URL)
+                .url(APPLY_URL) // keep trailing slash
+                .header("Authorization", "Bearer " + token)
                 .post(requestBody)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        http.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
@@ -209,10 +270,19 @@ public class UploadActivity extends AppCompatActivity {
                     submitBtn.setEnabled(true);
                     submitBtn.setText("Submit");
 
+                    if (response.code() == 403) {
+                        Toast.makeText(UploadActivity.this, "No try-ons left", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     if (!response.isSuccessful() || imageBytes == null) {
                         Toast.makeText(UploadActivity.this, "Server error: " + response.code(), Toast.LENGTH_SHORT).show();
                         return;
                     }
+
+                    int current = SessionManager.getTryOns(UploadActivity.this);
+                    int updated = Math.max(0, current - 1);
+                    SessionManager.setTryOns(UploadActivity.this, updated);
+                    updateTryOnsLabel(updated);
 
                     String imagePath = saveImageToCache(imageBytes);
                     if (imagePath != null) {
@@ -233,7 +303,6 @@ public class UploadActivity extends AppCompatActivity {
                 .setTitle("Select Option")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        // Camera selected
                         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                                 != PackageManager.PERMISSION_GRANTED) {
                             ActivityCompat.requestPermissions(this,
@@ -242,7 +311,6 @@ public class UploadActivity extends AppCompatActivity {
                             cameraLauncher.launch(new Intent(MediaStore.ACTION_IMAGE_CAPTURE));
                         }
                     } else {
-                        // Gallery selected
                         galleryLauncher.launch(new Intent(Intent.ACTION_PICK,
                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI));
                     }
@@ -250,13 +318,12 @@ public class UploadActivity extends AppCompatActivity {
                 .show();
     }
 
-
     private void showImage(Bitmap bitmap) {
         selfieBitmap = bitmap;
         imagePreview.setImageBitmap(bitmap);
-        imagePreview.setVisibility(View.VISIBLE);
-        uploadIcon.setVisibility(View.GONE);
-        supportedFormatText.setVisibility(View.GONE);
+        imagePreview.setVisibility(ImageView.VISIBLE);
+        uploadIcon.setVisibility(ImageView.GONE);
+        supportedFormatText.setVisibility(TextView.GONE);
         selectFileBtn.setText("Remove");
         isImageSelected = true;
     }
@@ -264,21 +331,21 @@ public class UploadActivity extends AppCompatActivity {
     private void removeImage() {
         selfieBitmap = null;
         imagePreview.setImageBitmap(null);
-        imagePreview.setVisibility(View.GONE);
-        uploadIcon.setVisibility(View.VISIBLE);
-        supportedFormatText.setVisibility(View.VISIBLE);
+        imagePreview.setVisibility(ImageView.GONE);
+        uploadIcon.setVisibility(ImageView.VISIBLE);
+        supportedFormatText.setVisibility(TextView.VISIBLE);
         selectFileBtn.setText("Select File");
         isImageSelected = false;
     }
-    @Override
 
+    @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 cameraLauncher.launch(new Intent(MediaStore.ACTION_IMAGE_CAPTURE));
             } else {
-                Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Camera permission is required", Toast.LENGTH_SHORT).show();
             }
         }
     }

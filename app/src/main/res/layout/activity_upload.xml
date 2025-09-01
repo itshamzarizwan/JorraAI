@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
@@ -11,18 +12,15 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:layout_gravity="center">
+        android:orientation="vertical">
 
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="60dp"/>
-
+        <!-- Top Bar -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingLeft="15dp"
-            android:paddingRight="15dp">
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp"
+            android:layout_marginTop="16dp">
 
             <ImageView
                 android:id="@+id/backbtn"
@@ -38,7 +36,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="JORRA AI"
-                android:textSize="30sp"
+                android:textSize="28sp"
                 android:fontFamily="sans-serif-black"
                 android:textColor="@color/black"
                 app:layout_constraintStart_toStartOf="parent"
@@ -48,32 +46,42 @@
                 android:gravity="center"/>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <!-- Divider -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:background="#BDBDBD"
-            android:layout_marginTop="4dp"/>
+            android:layout_marginTop="8dp"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Subject Photo"
-        android:textSize="20dp"
-        android:textColor="@color/black"
-        android:fontFamily="sans-serif-black"
-        android:paddingTop="20dp"
-        android:paddingLeft="10dp"/>
+        <!-- Subject Photo Label -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subject Photo"
+            android:textSize="20sp"
+            android:textColor="@color/black"
+            android:fontFamily="sans-serif-black"
+            android:paddingStart="10dp"
+            android:paddingTop="16dp"/>
 
+        <!-- Image Preview Frame -->
         <FrameLayout
-        android:id="@+id/imagePreviewFrame"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_margin="15dp"
-        android:background="#F8F9FE"
-        android:clipToPadding="false"
-        android:paddingLeft="10dp"
-        android:paddingRight="10dp">
+            android:id="@+id/imagePreviewFrame"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_margin="15dp"
+            android:background="#F8F9FE"
+            android:clipToPadding="false"
+            android:padding="10dp">
 
+            <!-- Dotted border background -->
+            <View
+                android:id="@+id/dottedBorder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/dotted_border" />
+
+            <!-- Image Preview -->
             <ImageView
                 android:id="@+id/imagePreview"
                 android:layout_width="match_parent"
@@ -82,50 +90,45 @@
                 android:adjustViewBounds="true"
                 android:visibility="gone"/>
 
-            <View
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/dotted_border" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="10dp">
-
-            <ImageView
-                android:id="@+id/uploadIcon"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_marginBottom="10dp"
-                android:contentDescription="Upload Icon"
-                android:src="@drawable/upload" />
-
-            <TextView
-                android:id="@+id/supportedFormatText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="15dp"
+            <!-- Upload Center -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="Supported Format: PNG, JPEG, JPG"
-                android:textColor="#757575"
-                android:textSize="14sp" />
+                android:orientation="vertical">
 
-            <Button
-                android:id="@+id/selectFileBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:backgroundTint="@color/black"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp"
-                android:text="Select File"
-                android:textColor="@android:color/white" />
-        </LinearLayout>
+                <ImageView
+                    android:id="@+id/uploadIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_marginBottom="8dp"
+                    android:contentDescription="Upload Icon"
+                    android:src="@drawable/upload" />
 
-    </FrameLayout>
+                <TextView
+                    android:id="@+id/supportedFormatText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Supported Format: PNG, JPEG, JPG"
+                    android:textSize="14sp"
+                    android:textColor="#757575"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center"/>
 
+                <Button
+                    android:id="@+id/selectFileBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:backgroundTint="@color/black"
+                    android:textColor="@android:color/white"
+                    android:text="Select File"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"/>
+            </LinearLayout>
 
+        </FrameLayout>
+
+        <!-- Hair Style Label -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -133,8 +136,7 @@
             android:textColor="@color/black"
             android:textSize="20sp"
             android:fontFamily="sans-serif-black"
-            android:textStyle="bold"
-            android:paddingLeft="10dp"/>
+            android:paddingStart="10dp"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -143,36 +145,51 @@
             android:textSize="15sp"
             android:textColor="#757575"
             android:fontFamily="sans-serif"
-            android:paddingLeft="10dp"/>
+            android:paddingStart="10dp"
+            android:paddingBottom="8dp"/>
 
+        <!-- Hairstyle RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewHairstyles"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:orientation="horizontal"/>
-
-        <!-- Google Search Bar -->
-        <LinearLayout
-            android:id="@+id/googleSearchLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="100dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="10dp"
-            android:layout_marginTop="20dp">
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"/>
 
-        </LinearLayout>
-
-
-        <Button
-            android:id="@+id/submitformbtn"
-            android:layout_marginTop="40dp"
+        <!-- Try-ons text -->
+        <TextView
+            android:id="@+id/tryOnsText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
+            android:text="Try-ons left: 0"
+            android:paddingStart="10dp"
+            android:paddingTop="12dp"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif-medium"/>
+
+        <!-- Submit Button -->
+        <Button
+            android:id="@+id/submitformbtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="Submit"
+            android:textColor="@color/white"
             android:layout_gravity="center"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="@color/black"/>
+
+        <!-- Logout Button -->
+        <Button
+            android:id="@+id/logoutBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Log out"
+            android:textColor="@android:color/white"
+            android:layout_gravity="center"
+            android:layout_marginTop="12dp"
             android:backgroundTint="@color/black"/>
 
     </LinearLayout>
