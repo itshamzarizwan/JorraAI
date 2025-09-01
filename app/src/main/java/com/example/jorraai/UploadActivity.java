@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.view.View; // ← added so we can hide the try-ons label
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -96,16 +97,18 @@ public class UploadActivity extends AppCompatActivity {
         imagePreview = findViewById(R.id.imagePreview);
         uploadIcon = findViewById(R.id.uploadIcon);
         supportedFormatText = findViewById(R.id.supportedFormatText);
-        tryOnsText = findViewById(R.id.tryOnsText);
+        //tryOnsText = findViewById(R.id.tryOnsText);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         setupHairstyles();
         setupLaunchers();
 
-        // Use cached try-ons on start
-        int tryOns = SessionManager.getTryOns(this);
-        updateTryOnsLabel(tryOns);
+        // ===== Disable try-ons quota UI =====
+        // int tryOns = SessionManager.getTryOns(this);
+        // updateTryOnsLabel(tryOns);
+        if (tryOnsText != null) tryOnsText.setVisibility(View.GONE);
+        // ====================================
 
         selectFileBtn.setOnClickListener(v -> {
             if (!isImageSelected) showImagePickerDialog();
@@ -134,9 +137,9 @@ public class UploadActivity extends AppCompatActivity {
     }
 
     private void updateTryOnsLabel(int tryOns) {
+        // No-op while quota is disabled
         if (tryOnsText != null) {
-            tryOnsText.setText("Try-ons left: " + tryOns);
-            tryOnsText.setVisibility(TextView.VISIBLE);
+            tryOnsText.setVisibility(View.GONE);
         }
     }
 
@@ -213,11 +216,13 @@ public class UploadActivity extends AppCompatActivity {
             return;
         }
 
-        int tryOns = SessionManager.getTryOns(this);
-        if (tryOns <= 0) {
-            Toast.makeText(this, "No try-ons left.", Toast.LENGTH_LONG).show();
-            return;
-        }
+        // ===== Disable try-ons quota check =====
+        // int tryOns = SessionManager.getTryOns(this);
+        // if (tryOns <= 0) {
+        //     Toast.makeText(this, "No try-ons left.", Toast.LENGTH_LONG).show();
+        //     return;
+        // }
+        // =======================================
 
         sendToBackend(selfieBitmap, selectedHairstyleResId);
     }
@@ -271,7 +276,8 @@ public class UploadActivity extends AppCompatActivity {
                     submitBtn.setText("Submit");
 
                     if (response.code() == 403) {
-                        Toast.makeText(UploadActivity.this, "No try-ons left", Toast.LENGTH_SHORT).show();
+                        // With unlimited try-ons this shouldn't happen, but keep a friendly message.
+                        Toast.makeText(UploadActivity.this, "Access denied (403).", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     if (!response.isSuccessful() || imageBytes == null) {
@@ -279,10 +285,12 @@ public class UploadActivity extends AppCompatActivity {
                         return;
                     }
 
-                    int current = SessionManager.getTryOns(UploadActivity.this);
-                    int updated = Math.max(0, current - 1);
-                    SessionManager.setTryOns(UploadActivity.this, updated);
-                    updateTryOnsLabel(updated);
+                    // ===== Remove decrement and label update =====
+                    // int current = SessionManager.getTryOns(UploadActivity.this);
+                    // int updated = Math.max(0, current - 1);
+                    // SessionManager.setTryOns(UploadActivity.this, updated);
+                    // updateTryOnsLabel(updated);
+                    // ============================================
 
                     String imagePath = saveImageToCache(imageBytes);
                     if (imagePath != null) {
